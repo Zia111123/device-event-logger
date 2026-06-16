@@ -67,5 +67,31 @@ export function createApp(options?: AppOptions) {
 
   app.route("/mcp", mcp);
 
-  return app;
+    // 熬夜提醒
+  const BARK_URL = "https://api.day.app/txWHTqjX3WaeoNyCDPt2yD";
+  let lastNightAlertSent = false;
+
+  setInterval(async () => {
+    const now = new Date();
+    const hour = now.getUTCHours() + (cachedOffsetMinutes ?? 480) / 60;
+    const localHour = ((hour % 24) + 24) % 24;
+
+    if (localHour >= 0 && localHour < 6) {
+      if (!lastNightAlertSent && sqlInstance) {
+        const rows = await sqlInstance`
+          SELECT COUNT(*) as cnt FROM events
+          WHERE type = 'app.open'
+          AND ts > now() - interval '6 hours'
+        `;
+        const count = Number(rows[0]?.cnt ?? 0);
+        if (count >= 2) {
+          await fetch(`${BARK_URL}/熬夜提醒/不許再玩了`);
+          lastNightAlertSent = true;
+        }
+      }
+    } else {
+      lastNightAlertSent = false;
+    }
+  }, 60 * 1000);
+return app;
 }
